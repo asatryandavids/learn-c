@@ -5,18 +5,20 @@
 #include "iostream"
 #include <fstream>
 
-void create_file(std::string file_name){
+CopyArgumentParser prepare_files(std::string source_file_name, std::string dest_file_name){
+    std::cout << std::boolalpha;
+
     std::ofstream file;
-    file.open (file_name, std::ios::out);
+    file.open (source_file_name, std::ios::out);
     file << "some text to copy";
     file.close();
+
+    return CopyArgumentParser(source_file_name, dest_file_name);
 }
 
 TEST_CASE( "copy in one thread" ) {
-    std::cout << std::boolalpha;
-    auto source_name = "test_file.txt";
-    create_file(source_name);
-    CopyArgumentParser args = CopyArgumentParser(source_name, "test_file_copy.txt");
+    CopyArgumentParser args = prepare_files("test_file.txt", "test_file_copy.txt");
+
     std::filesystem::path source = args.source_path();
     std::filesystem::path destination = args.destination_path();
     if (std::filesystem::exists(destination))
@@ -30,4 +32,12 @@ TEST_CASE( "copy in one thread" ) {
     Copy c(source, destination);
     c.run_one_thread();
     REQUIRE(std::filesystem::exists(destination));
+}
+
+TEST_CASE( "copy in multi thread" ) {
+    CopyArgumentParser args = prepare_files("test_file.txt", "test_file_copy.txt");
+
+    Copy c(args.source_path(), args.destination_path());
+    c.parallel_copy();
+    REQUIRE(std::filesystem::exists(args.destination_path()));
 }
