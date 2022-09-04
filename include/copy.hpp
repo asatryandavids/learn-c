@@ -19,12 +19,11 @@ public:
     void run_one_thread(){
         std::ofstream fout(_destination, std::ifstream::binary);
         std::ifstream fin(_source, std::ifstream::binary);
-        int buffer_size = 1024;
-        char* buffer = new char[buffer_size];
+        char* buffer = new char[COPY_BUFFER_SIZE];
 
         try {
             while(!fin.eof()) {
-                fin.read(buffer, buffer_size);
+                fin.read(buffer, COPY_BUFFER_SIZE);
                 std::streamsize s=fin.gcount();
                 fout.write(buffer, s);
             }
