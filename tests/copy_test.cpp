@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
-#include "argument_parsers/copy_argument_parser.hpp"
-#include "copy.hpp"
+#include "argument_parsers/copy_argument_parser.h"
+#include "copy.h"
 #include <filesystem>
 #include "iostream"
 #include <fstream>
@@ -29,7 +29,7 @@ TEST_CASE( "copy in one thread" ) {
     REQUIRE(std::filesystem::exists(source));
     REQUIRE_FALSE(std::filesystem::exists(destination));
 
-    Copy c(source, destination);
+    Copy c(args);
     c.run_one_thread();
     REQUIRE(std::filesystem::exists(destination));
 }
@@ -37,7 +37,12 @@ TEST_CASE( "copy in one thread" ) {
 TEST_CASE( "copy in multi thread" ) {
     CopyArgumentParser args = prepare_files("test_file.txt", "test_file_copy.txt");
 
-    Copy c(args.source_path(), args.destination_path());
+    Copy c(args);
     c.parallel_copy();
     REQUIRE(std::filesystem::exists(args.destination_path()));
+}
+
+TEST_CASE( "fail open source_file" ) {
+    CopyArgumentParser args = CopyArgumentParser("not_exists.txt", "test_file_copy.txt");
+    REQUIRE_FALSE(args.validate());
 }
