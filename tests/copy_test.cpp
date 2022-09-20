@@ -1,9 +1,11 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/benchmark/catch_benchmark.hpp>
 #include "argument_parsers/copy_argument_parser.h"
 #include "copy.h"
 #include <filesystem>
 #include "iostream"
-#include <fstream>
+#include "include/test_helper.h"
+
 
 CopyArgumentParser prepare_files(std::string source_file_name, std::string dest_file_name){
     std::cout << std::boolalpha;
@@ -19,8 +21,8 @@ CopyArgumentParser prepare_files(std::string source_file_name, std::string dest_
 TEST_CASE( "copy in one thread" ) {
     CopyArgumentParser args = prepare_files("test_file.txt", "test_file_copy.txt");
 
-    std::filesystem::path source = args.source_path();
-    std::filesystem::path destination = args.destination_path();
+    std::filesystem::path source = args.sourcePath();
+    std::filesystem::path destination = args.destinationPath();
     if (std::filesystem::exists(destination))
         std::filesystem::remove(destination);
     REQUIRE(source.is_relative());
@@ -30,19 +32,26 @@ TEST_CASE( "copy in one thread" ) {
     REQUIRE_FALSE(std::filesystem::exists(destination));
 
     Copy c(args);
-    c.run_one_thread();
+    c.runOneThread();
     REQUIRE(std::filesystem::exists(destination));
+
+    REQUIRE(isMD5Correct(args.sourcePath(), args.destinationPath()));
 }
 
 TEST_CASE( "copy in multi thread" ) {
-    CopyArgumentParser args = prepare_files("test_file.txt", "test_file_copy.txt");
+    std::string gig_file = "1g.file";
+    RandomTestFiles test_file(gig_file, 1024);
+    REQUIRE(gig_file == "1g.file");
+    REQUIRE(std::filesystem::file_size(gig_file) == 1024 * 1024 * 1024 );
+    CopyArgumentParser args(gig_file, gig_file + ".copy");
 
     Copy c(args);
-    c.parallel_copy();
-    REQUIRE(std::filesystem::exists(args.destination_path()));
-}
+    c.parallelCopy();
+    REQUIRE(std::filesystem::exists(args.destinationPath()));
 
-TEST_CASE( "fail open source_file" ) {
-    CopyArgumentParser args = CopyArgumentParser("not_exists.txt", "test_file_copy.txt");
-    REQUIRE_FALSE(args.validate());
+    REQUIRE(isMD5Correct(args.sourcePath(), args.destinationPath()));
+
+    if (std::filesystem::exists(gig_file + ".copy"))
+        std::filesystem::remove(gig_file + ".copy");
+
 }

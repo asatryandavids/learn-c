@@ -5,11 +5,10 @@
 
 class CopyArgumentParser {
 public:
-    const std::filesystem::path& source_path() const;
-    const std::filesystem::path& destination_path() const;
+    const std::filesystem::path& sourcePath() const;
+    const std::filesystem::path& destinationPath() const;
     CopyArgumentParser(const std::string& source, const std::string& destination);
 
-    bool validate() const;
 private:
 
     std::filesystem::path _source;

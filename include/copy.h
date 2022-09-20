@@ -1,26 +1,28 @@
 #include <filesystem>
 #include "argument_parsers/copy_argument_parser.h"
+#include <queue>
+#include <buffer_object.h>
 
 namespace {
-    constexpr int COPY_BUFFER_SIZE = 1024;
+    constexpr int COPY_BUFFER_SIZE = 4 * 1024;
 }
 
 class Copy {
 public:
     Copy(CopyArgumentParser args);
 
-    void run_one_thread() const;
+    void runOneThread(int buffer_size = COPY_BUFFER_SIZE) const;
 
-    void parallel_copy();
+    void parallelCopy(int buffer_size = COPY_BUFFER_SIZE);
 
     void writer();
 
-    void reader();
+    void reader(int buffer_size);
 
 private:
-    CopyArgumentParser args;
+    CopyArgumentParser _args;
     std::mutex _m;
-    std::streamsize actual_buffer_size = 0;
-    std::shared_ptr<char[]> _buffer;
+    std::queue<BufferObj> _buffer_queue;
+    std::streamsize _done_reading = 0;
 };
 

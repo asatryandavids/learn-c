@@ -9,18 +9,10 @@ CopyArgumentParser::CopyArgumentParser(const std::string& source, const std::str
     _destination = std::filesystem::path{ destination };
 }
 
-const std::filesystem::path & CopyArgumentParser::source_path() const {
+const std::filesystem::path & CopyArgumentParser::sourcePath() const {
     return _source;
 }
 
-const std::filesystem::path & CopyArgumentParser::destination_path() const {
+const std::filesystem::path & CopyArgumentParser::destinationPath() const {
     return _destination;
-}
-
-bool CopyArgumentParser::validate() const {
-    if (!std::filesystem::exists(_source)){
-        std::cerr << "Source file does not exist. " << _source << std::endl;
-        return false;
-    }
-    return true;
 }

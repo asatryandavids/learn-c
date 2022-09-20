@@ -5,56 +5,37 @@
 #include <thread>
 #include <mutex>
 #include <copy.h>
+#include <exceptions/io_exception.h>
 
-Copy::Copy(CopyArgumentParser args) : args(std::move(args)), _buffer(new char[COPY_BUFFER_SIZE]) {
+Copy::Copy(CopyArgumentParser args) : _args(std::move(args)) {
 }
 
-void Copy::run_one_thread() const {
-    if (!args.validate()) {
-        std::cerr << "Invalid argument" << std::endl;
-        return;
-    }
+void Copy::runOneThread(const int buffer_size) const {
 
-    std::ifstream fin(args.source_path(), std::ifstream::binary);
-    if (fin.rdstate() != 0) {
-        std::cerr << "Can't open source file" << std::endl;
-        return;
-    }
+    std::ifstream fin(_args.sourcePath(), std::ifstream::binary);
+    if (!fin.is_open())
+        throw CopyFileReadException(_args.sourcePath());
 
-    std::ofstream fout(args.destination_path(), std::ifstream::binary);
-    if (fout.rdstate() != 0) {
-        std::cerr << "Can't open destination file" << std::endl;
-        fin.close();
-        return;
-    }
+    std::ofstream fout(_args.destinationPath(), std::ifstream::binary);
+    if (!fout.is_open())
+        throw CopyFileWriteException(_args.destinationPath());
 
-    std::unique_ptr<char[]> buffer(new char[COPY_BUFFER_SIZE]);
+    std::unique_ptr<char[]> buffer(new char[buffer_size]);
 
-    try {
-        while (!fin.eof()) {
-            fin.read(buffer.get(), COPY_BUFFER_SIZE);
-            std::streamsize s = fin.gcount();
+    while (fin.good()) {
+        fin.read(buffer.get(), buffer_size);
+        std::streamsize s = fin.gcount();
+
+        if (fout.good())
             fout.write(buffer.get(), s);
-        }
+        else
+            throw CopyFileWriteException(_args.sourcePath());
     }
-    catch (const std::ifstream::failure &e) {
-        std::cerr << "Error while reading source file" << std::endl << e.what() << std::endl;
-    }
-    catch (const std::ofstream::failure &e) {
-        std::cerr << "Error while writing to destination file" << std::endl << e.what() << std::endl;
-    }
-
-    fout.close();
-    fin.close();
 }
 
-void Copy::parallel_copy() {
-    if (!args.validate()) {
-        std::cerr << "Invalid argument" << std::endl;
-        return;
-    }
+void Copy::parallelCopy(const int buffer_size) {
 
-    std::thread reader(&Copy::reader, this);
+    std::thread reader(&Copy::reader, this, buffer_size);
     std::thread writer(&Copy::writer, this);
 
     reader.join();
@@ -62,50 +43,47 @@ void Copy::parallel_copy() {
 }
 
 void Copy::writer() {
-    std::cout << "start writer worker" << std::endl;
-    std::ofstream fout(args.destination_path(), std::ifstream::binary);
-    if (fout.rdstate() != 0) {
-        std::cerr << "Can't open destination file" << std::endl;
-        return;
-    }
+//    std::cout << "start writer worker" << std::endl;
+    std::ofstream fout(_args.destinationPath(), std::ifstream::binary);
+    if (!fout.is_open())
+        throw CopyFileWriteException(_args.destinationPath());
 
-    while (actual_buffer_size != -1) {
-        if (actual_buffer_size > 0) {
-            fout.write(_buffer.get(), actual_buffer_size);
-            actual_buffer_size = 0;
+    BufferObj buffer_obj;
+
+    while (_done_reading != -1 || !_buffer_queue.empty()) {
+        while (!_buffer_queue.empty()) {
+            {
+                std::unique_lock lk(_m);
+//                std::cout << "Read from queue. " << _buffer_queue.size() << " message left" << std::endl;
+                buffer_obj = std::move(_buffer_queue.front());
+                _buffer_queue.pop();
+            }
+
+            fout.write(buffer_obj.buffer.get(), buffer_obj.buffer_size);
+            if (!fout.good())
+                throw CopyFileWriteException(_args.destinationPath());
         }
     }
-
-    fout.close();
 }
 
-void Copy::reader() {
-    std::cout << "start reader worker" << std::endl;
-    std::ifstream fin(args.source_path(), std::ifstream::binary);
-    if (fin.rdstate() != 0) {
-        std::cerr << "Can't open source file" << std::endl;
-        return;
-    }
+void Copy::reader(const int buffer_size) {
+//    std::cout << "start reader worker" << std::endl;
+    std::ifstream fin(_args.sourcePath(), std::ifstream::binary);
+    if (!fin.is_open())
+        throw CopyFileReadException(_args.sourcePath());
 
-    std::shared_ptr<char[]> local_buffer(new char[COPY_BUFFER_SIZE]);
     int local_buffer_size;
 
-    while (!fin.eof()) {
-        try {
-            fin.read(local_buffer.get(), COPY_BUFFER_SIZE);
-            local_buffer_size = fin.gcount();
-        }
-        catch (const std::ifstream::failure &e) {
-            std::cerr << "Error while reading source file" << std::endl << e.what() << std::endl;
-            break;
-        }
+    while (fin.good()) {
+        std::unique_ptr<char[]> local_buffer(new char[buffer_size]);
+        fin.read(local_buffer.get(), buffer_size);
+        local_buffer_size = fin.gcount();
 
         {
             std::unique_lock lk(_m);
-            actual_buffer_size = local_buffer_size;
-            std::copy(local_buffer.get(), local_buffer.get() + local_buffer_size, _buffer.get());
+            _buffer_queue.push(std::move(BufferObj{std::move(local_buffer), local_buffer_size}));
+//            std::cout << "Push to queue" << std::endl;
         }
     }
-    actual_buffer_size = -1;
-    fin.close();
+    _done_reading = -1;
 }
