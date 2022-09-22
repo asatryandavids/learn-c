@@ -18,6 +18,8 @@ public:
 
     void reader(int buffer_size);
 
+    static std::exception_ptr exceptionPtr;
+
 private:
     CopyArgumentParser _args;
     std::mutex _m;

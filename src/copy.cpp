@@ -7,6 +7,8 @@
 #include <copy.h>
 #include <exceptions/io_exception.h>
 
+std::exception_ptr Copy::exceptionPtr = nullptr;
+
 Copy::Copy(CopyArgumentParser args) : _args(std::move(args)), _done_reading(false) {
     std::cout << "Try to copy " << _args.sourcePath() << " to " << _args.destinationPath() << std::endl;
 }
@@ -43,42 +45,54 @@ void Copy::parallelCopy(const int buffer_size) {
 }
 
 void Copy::writer() {
-    std::ofstream fout(_args.destinationPath());
-    if (!fout.is_open())
-        throw CopyFileWriteException(_args.destinationPath());
+    try {
+        std::ofstream fout(_args.destinationPath());
+        if (!fout.is_open())
+            throw CopyFileWriteException(_args.destinationPath());
 
-    while (!_done_reading || !_buffer_queue.empty()) {
-        while (!_buffer_queue.empty()) {
-            std::pair<std::unique_ptr<char []>, int> buffer_obj;
-            {
-                std::unique_lock lk(_m);
-                buffer_obj = std::move(_buffer_queue.front());
-                _buffer_queue.pop();
+        while (!_done_reading || !_buffer_queue.empty()) {
+            while (!_buffer_queue.empty()) {
+                std::pair<std::unique_ptr<char []>, int> buffer_obj;
+                {
+                    std::unique_lock lk(_m);
+                    buffer_obj = std::move(_buffer_queue.front());
+                    _buffer_queue.pop();
+                }
+
+                fout.write(buffer_obj.first.get(), buffer_obj.second);
+                if (!fout.good())
+                    throw CopyFileWriteException(_args.destinationPath());
             }
-
-            fout.write(buffer_obj.first.get(), buffer_obj.second);
-            if (!fout.good())
-                throw CopyFileWriteException(_args.destinationPath());
         }
+    }
+    catch (const CopyExceptionBase& e)
+    {
+        Copy::exceptionPtr = std::current_exception();
     }
 }
 
 void Copy::reader(const int buffer_size) {
-    std::ifstream fin(_args.sourcePath());
-    if (!fin.is_open())
-        throw CopyFileReadException(_args.sourcePath());
+    try {
+        std::ifstream fin(_args.sourcePath());
+        if (!fin.is_open())
+            throw CopyFileReadException(_args.sourcePath());
 
-    int local_buffer_size;
+        int local_buffer_size;
 
-    while (fin.good()) {
-        std::unique_ptr<char[]> local_buffer(new char[buffer_size]);
-        fin.read(local_buffer.get(), buffer_size);
-        local_buffer_size = fin.gcount();
+        while (fin.good()) {
+            std::unique_ptr<char[]> local_buffer(new char[buffer_size]);
+            fin.read(local_buffer.get(), buffer_size);
+            local_buffer_size = fin.gcount();
 
-        {
-            std::unique_lock lk(_m);
-            _buffer_queue.push(std::move(std::pair(std::move(local_buffer), local_buffer_size)));
+            {
+                std::unique_lock lk(_m);
+                _buffer_queue.push(std::move(std::pair(std::move(local_buffer), local_buffer_size)));
+            }
         }
+    }
+    catch (const CopyExceptionBase& e)
+    {
+        Copy::exceptionPtr = std::current_exception();
     }
     _done_reading = true;
 }
