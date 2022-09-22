@@ -3,7 +3,12 @@
 #include <iostream>
 #include <exceptions/exception_base.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
+    // Display each command-line argument.
+    std::cout << "\nCommand-line arguments:\n";
+    for( int count = 0; count < argc; count++ )
+        std::cout << "  argv[" << count << "]   " << argv[count] << "\n";
+
     if (argc != 3) {
         std::cerr << "Please specify source and destination file path" << std::endl;
         return 1;

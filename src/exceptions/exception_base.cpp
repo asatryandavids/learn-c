@@ -13,6 +13,6 @@ const char *CopyExceptionBase::what() const noexcept {
     return _msg.c_str();
 }
 
-int CopyExceptionBase::number() {
+int CopyExceptionBase::number() const {
     return _number;
 }

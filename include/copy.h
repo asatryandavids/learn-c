@@ -3,7 +3,7 @@
 #include <queue>
 
 namespace {
-    constexpr int COPY_BUFFER_SIZE = 4 * 1024;
+    constexpr int COPY_BUFFER_SIZE = 1024;
 }
 
 class Copy {
@@ -22,6 +22,6 @@ private:
     CopyArgumentParser _args;
     std::mutex _m;
     std::queue<std::pair<std::unique_ptr<char []>, int>> _buffer_queue;
-    std::streamsize _done_reading = 0;
+    bool _done_reading;
 };
 

@@ -9,8 +9,8 @@ class CopyExceptionBase : public std::exception
     std::string _msg;
     int _number;
 public:
-    CopyExceptionBase(std::string  msg, const int number);
-    virtual const char* what() const noexcept override;
+    CopyExceptionBase(std::string msg, int number);
+    const char* what() const noexcept override;
 
-    int number();
+    int number() const;
 };

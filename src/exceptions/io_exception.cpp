@@ -2,18 +2,10 @@
 
 #include <utility>
 
-CopyFileReadException::CopyFileReadException(std::string  file_name): CopyExceptionBase("Error while reading file", 10), _file_name(std::move(file_name)) {
-
+CopyFileReadException::CopyFileReadException(std::string  file_name):
+        CopyExceptionBase("Error while reading file (" + file_name + ")", 10) {
 }
 
-const char *CopyFileReadException::what() const noexcept {
-    return (std::string(CopyExceptionBase::what()) + " (" + _file_name + ")").c_str();
-}
-
-CopyFileWriteException::CopyFileWriteException(std::string  file_name): CopyExceptionBase("Error while writing to file", 11), _file_name(std::move(file_name)) {
-
-}
-
-const char *CopyFileWriteException::what() const noexcept {
-    return (std::string(CopyExceptionBase::what()) + " (" + _file_name + ")").c_str();
+CopyFileWriteException::CopyFileWriteException(std::string  file_name):
+        CopyExceptionBase("Error while writing to file (" + file_name + ")", 11) {
 }

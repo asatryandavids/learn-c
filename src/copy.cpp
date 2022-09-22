@@ -7,7 +7,8 @@
 #include <copy.h>
 #include <exceptions/io_exception.h>
 
-Copy::Copy(CopyArgumentParser args) : _args(std::move(args)) {
+Copy::Copy(CopyArgumentParser args) : _args(std::move(args)), _done_reading(false) {
+    std::cout << "Try to copy " << _args.sourcePath() << " to " << _args.destinationPath() << std::endl;
 }
 
 void Copy::runOneThread(const int buffer_size) const {
@@ -34,7 +35,6 @@ void Copy::runOneThread(const int buffer_size) const {
 }
 
 void Copy::parallelCopy(const int buffer_size) {
-
     std::thread reader(&Copy::reader, this, buffer_size);
     std::thread writer(&Copy::writer, this);
 
@@ -43,23 +43,20 @@ void Copy::parallelCopy(const int buffer_size) {
 }
 
 void Copy::writer() {
-//    std::cout << "start writer worker" << std::endl;
-    std::ofstream fout(_args.destinationPath(), std::ifstream::binary);
+    std::ofstream fout(_args.destinationPath());
     if (!fout.is_open())
         throw CopyFileWriteException(_args.destinationPath());
 
-    std::pair<std::unique_ptr<char []>, int> buffer_obj;
-
-    while (_done_reading != -1 || !_buffer_queue.empty()) {
+    while (!_done_reading || !_buffer_queue.empty()) {
         while (!_buffer_queue.empty()) {
+            std::pair<std::unique_ptr<char []>, int> buffer_obj;
             {
                 std::unique_lock lk(_m);
-//                std::cout << "Read from queue. " << _buffer_queue.size() << " message left" << std::endl;
                 buffer_obj = std::move(_buffer_queue.front());
                 _buffer_queue.pop();
             }
 
-            fout.write(buffer_obj.first().get(), buffer_obj.second());
+            fout.write(buffer_obj.first.get(), buffer_obj.second);
             if (!fout.good())
                 throw CopyFileWriteException(_args.destinationPath());
         }
@@ -67,8 +64,7 @@ void Copy::writer() {
 }
 
 void Copy::reader(const int buffer_size) {
-//    std::cout << "start reader worker" << std::endl;
-    std::ifstream fin(_args.sourcePath(), std::ifstream::binary);
+    std::ifstream fin(_args.sourcePath());
     if (!fin.is_open())
         throw CopyFileReadException(_args.sourcePath());
 
@@ -82,8 +78,7 @@ void Copy::reader(const int buffer_size) {
         {
             std::unique_lock lk(_m);
             _buffer_queue.push(std::move(std::pair(std::move(local_buffer), local_buffer_size)));
-//            std::cout << "Push to queue" << std::endl;
         }
     }
-    _done_reading = -1;
+    _done_reading = true;
 }
