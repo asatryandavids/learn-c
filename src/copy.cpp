@@ -48,7 +48,7 @@ void Copy::writer() {
     if (!fout.is_open())
         throw CopyFileWriteException(_args.destinationPath());
 
-    BufferObj buffer_obj;
+    std::pair<std::unique_ptr<char []>, int> buffer_obj;
 
     while (_done_reading != -1 || !_buffer_queue.empty()) {
         while (!_buffer_queue.empty()) {
@@ -59,7 +59,7 @@ void Copy::writer() {
                 _buffer_queue.pop();
             }
 
-            fout.write(buffer_obj.buffer.get(), buffer_obj.buffer_size);
+            fout.write(buffer_obj.first().get(), buffer_obj.second());
             if (!fout.good())
                 throw CopyFileWriteException(_args.destinationPath());
         }
@@ -81,7 +81,7 @@ void Copy::reader(const int buffer_size) {
 
         {
             std::unique_lock lk(_m);
-            _buffer_queue.push(std::move(BufferObj{std::move(local_buffer), local_buffer_size}));
+            _buffer_queue.push(std::move(std::pair(std::move(local_buffer), local_buffer_size)));
 //            std::cout << "Push to queue" << std::endl;
         }
     }
