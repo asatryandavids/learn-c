@@ -19,22 +19,25 @@ set(COPY_SRC
         src/argument_parsers/copy_argument_parser.cpp
         src/exceptions/exception_base.cpp
         src/exceptions/io_exception.cpp
-        )
+        src/executors/executor_base.cpp
+        src/executors/single_thread_executor.cpp
+        src/executors/multi_thread_executor.cpp)
+
 add_executable(copy copy_main.cpp ${COPY_SRC})
 target_include_directories(copy PUBLIC include)
 target_link_libraries(copy PRIVATE Catch2::Catch2)
 
 
-set(TEST_SRC tests/test_helper.cpp)
+set(TEST_SRC tests/test_helper.cpp src/executors/multi_thread_executor.cpp)
 
 # Tests
 add_executable(tests tests/copy_test.cpp ${COPY_SRC} ${TEST_SRC})
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain OpenSSL::SSL OpenSSL::Crypto)
 target_include_directories(tests PUBLIC include ${OPENSSL_INCLUDE_DIR} tests/include)
 
-# Benchmarks
-add_executable(benchmarks tests/benchmark_test.cpp ${COPY_SRC} ${TEST_SRC})
-target_link_libraries(benchmarks PRIVATE Catch2::Catch2WithMain OpenSSL::SSL OpenSSL::Crypto)
-target_include_directories(benchmarks PUBLIC include ${OPENSSL_INCLUDE_DIR} tests/include)
+## Benchmarks
+#add_executable(benchmarks tests/benchmark_test.cpp ${COPY_SRC} ${TEST_SRC})
+#target_link_libraries(benchmarks PRIVATE Catch2::Catch2WithMain OpenSSL::SSL OpenSSL::Crypto)
+#target_include_directories(benchmarks PUBLIC include ${OPENSSL_INCLUDE_DIR} tests/include)
 
 

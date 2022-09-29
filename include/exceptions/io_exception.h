@@ -1,3 +1,5 @@
+#pragma once
+
 #include "exception_base.h"
 #include <string>
 
